@@ -1,5 +1,5 @@
 {
-  "name": "zostelbackend",
+  "name": "Hommie-Backend",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -7,16 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon index.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/dadiprasanth/zostelbackend.git"
-  },
-  "author": "prasanth",
+  "author": "harshu",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/dadiprasanth/zostelbackend/issues"
-  },
-  "homepage": "https://github.com/dadiprasanth/zostelbackend#readme",
   "dependencies": {
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",
