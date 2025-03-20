@@ -11,7 +11,7 @@ const sendMail=require("../routes/sendMailToSetPassword")
 const checkUserInMainTable=async(req,res,next)=>{
     try{
         const check = await users.findOne({ email: req.body.email })
-        console.log("checking email")
+        // console.log("checking email")
         if(check){
             return res.status(400).json({
                 message: "UserAlready have an account please login.",
@@ -31,14 +31,12 @@ const checkUserInMainTable=async(req,res,next)=>{
 const userShouldBeinMainTable = async (req, res, next) => {
     try {
         const check = await users.findOne({ email: req.body.email })
-        console.log("checking email")
         if (!check) {
             return res.status(400).json({
                 message: "User Doesn't have an account please signup.",
                 status: "E"
             })
         } else {
-            console.log(check)
             req.body.name=check.name
             req.reset=true,
             req.check=check
@@ -81,7 +79,6 @@ const Decode=async(req,res,next)=>{
 const SelectMiddlewear=async(req,res,next)=>{
     const { name, date, email,reset } = req.obj
     if(reset){
-        console.log("reset")
         req.body.email=email
         userShouldBeinMainTable(req, res, next)
         
@@ -138,7 +135,6 @@ route.post("/signup/:encodeEmailPlusTime",Decode,SelectMiddlewear, async (req, r
     try {
         // console.log(req.body)
         const { name, date, email,reset } = req.obj
-        console.log(name,email,date)
 
 
             bcrypt.hash(req.body.password, 10, async function (err, hash) {
@@ -167,7 +163,6 @@ route.post("/signup/:encodeEmailPlusTime",Decode,SelectMiddlewear, async (req, r
 
 route.post("/signup_send_mail",checkUserInMainTable,sendMail,async (req, res) => {
     //console.log("store data")
-    console.log(req.body.email)
 
     try {
         return res.status(200).json({

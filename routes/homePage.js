@@ -87,14 +87,7 @@ route.post('/upload', verifyjwtToken, upload.array('photos', 12), async (req, re
             uploadedPhotos.push({"path": downloadURL});
         }
 
-        // Now you have an array of download URLs for the uploaded photos
-        console.log('Uploaded photos:', uploadedPhotos);
-
-        // Here you can proceed to save other details to your database
-        // For demonstration purposes, I'm just logging the details
-        console.log('Email:', email);
-        console.log('Location:', location);
-        console.log('Category:', category);
+      
 
         await users_post_details.create({...req.body, photos:uploadedPhotos})
 
@@ -182,46 +175,54 @@ route.put('/view_propertie/:id', verifyjwtToken, async (req, res) => {
         data
     })
 })
-route.get('/view_landlords/', verifyjwtToken, async (req, res) => {
-    //console.log(process.cwd())
-    //res.sendFile(process.cwd() + `/userImages/${req.params.img}`)
+
+route.get('/view_landlords/', verifyjwtToken, userShouldBeinMainTable, async (req, res) => {
     try {
-        const usersWithProperties = await users_post_details.aggregate([
+        const check = await users.findOne({ email: req.check.email });
+        console.log(check , "check")
+        const usersWithProperties = await users.aggregate([
             {
-                $group: {
-                    _id: "$email",
-                   
-                    count: { $sum: 1 }
+                $lookup: {
+                    from: "users_post_details", // Collection that stores property posts
+                    localField: "email",
+                    foreignField: "email",
+                    as: "properties"
                 }
             },
             {
-                $lookup: {
-                    from: "users_table", // name of the users collection
-                    localField: "_id",
-                    foreignField: "email", 
-                    as: "user"
+                $addFields: {
+                    propertyCount: { $size: "$properties" } // Count properties for each user
+                }
+            },
+            {
+                $match: {
+                    propertyCount: { $gte: 1 } // Only users with at least one property
                 }
             },
             {
                 $project: {
-                    "user.email": 1,
-                    "user.name": 1,
-                    "user.state": 1,
-                    count: 1
+                    email: 1,
+                    name: 1,
+                    gender: 1,
+                    state: 1,
+                    photos: 1,
+                    propertyCount: 1
                 }
             }
         ]);
+
         return res.status(200).json({
             status: "S",
-            message: "Review updated successfully.'",
+            message: "Landlords retrieved successfully.",
             usersWithProperties
-        })
-       
+        });
+
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
+});
 
-})
+
 
 route.get('/top-commented/', verifyjwtToken, async (req, res) => {
     try {

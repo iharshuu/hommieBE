@@ -22,7 +22,7 @@ const sendMail=(req,res,next) => {
 
     // Convert the Buffer to a Base64 encoded string
     const base64String = buffer.toString('base64');
-    console.log(base64String)
+    // console.log(base64String)
     // next()
     // return
  
