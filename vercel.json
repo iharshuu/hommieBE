@@ -14,7 +14,7 @@
   ],
   "functions": {
     "api/**/*.js": {
-      "maxDuration": 300 // Increase timeout to 300 seconds
+      "maxDuration": 300
     }
   }
 }
