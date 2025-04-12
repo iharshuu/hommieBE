@@ -378,8 +378,12 @@ const server = app.listen(process.env.PORT || 8080, () => {
 const io = require("socket.io")(server, {
   pingTimeout: 60000,
   cors: {
-    origin: "*",
+    origin: ["http://localhost:5173", "https://hommiefe.vercel.app"], // Explicit allowed origins
+    methods: ["GET", "POST"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
   },
+  transports: ["websocket", "polling"] // Explicitly enable both transports
 });
 
 // Socket.io connection
