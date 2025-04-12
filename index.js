@@ -8,6 +8,8 @@ require("dotenv").config();
 const app = express();
 const cloudinary = require("cloudinary").v2;
 const User = require("./schemas/userSignUpSchema");
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
 
 // MongoDB connection
 mongoose.connect(
@@ -27,7 +29,45 @@ app.get("/", (req, res) => {
     message: "Success"
   });
 });
+app.post("/order", async (req, res) => {
+  try {
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_SECRET,
+    });
 
+    const options = req.body;
+    const order = await razorpay.orders.create(options);
+
+    if (!order) {
+      return res.status(500).send("Error");
+    }
+
+    res.json(order);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send("Error");
+  }
+});
+
+app.post("/order/validate", async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+    req.body;
+
+  const sha = crypto.createHmac("sha256", process.env.RAZORPAY_SECRET);
+  //order_id + "|" + razorpay_payment_id
+  sha.update(`${razorpay_order_id}|${razorpay_payment_id}`);
+  const digest = sha.digest("hex");
+  if (digest !== razorpay_signature) {
+    return res.status(400).json({ msg: "Transaction is not legit!" });
+  }
+
+  res.json({
+    msg: "success",
+    orderId: razorpay_order_id,
+    paymentId: razorpay_payment_id,
+  });
+});
 app.use('/' , route)
 
 // Cloudinary configuration
@@ -93,6 +133,106 @@ app.get("/chat-room", async (req, res) => {
   }
 });
 
+// Route to get all chat rooms for a user with at least one message
+app.get("/user-chat-rooms", async (req, res) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Find all chats where the user is a participant and has at least one message
+    const chatRooms = await Chat.aggregate([
+      {
+        $match: {
+          users: user._id,
+          latestMessage: { $exists: true } // Only chats with at least one message
+        }
+      },
+      {
+        $lookup: {
+          from: "messages",
+          localField: "latestMessage",
+          foreignField: "_id",
+          as: "latestMessageDetails"
+        }
+      },
+      { $unwind: "$latestMessageDetails" },
+      {
+        $lookup: {
+          from: "users",
+          localField: "users",
+          foreignField: "_id",
+          as: "participants"
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          chatName: 1,
+          isGroupChat: 1,
+          latestMessage: {
+            text: "$latestMessageDetails.text",
+            sender: "$latestMessageDetails.sender",
+            timestamp: "$latestMessageDetails.timestamp",
+            mediaUrl: "$latestMessageDetails.mediaUrl",
+            mediaType: "$latestMessageDetails.mediaType"
+          },
+          participants: {
+            $filter: {
+              input: "$participants",
+              as: "participant",
+              cond: { $ne: ["$$participant._id", user._id] }
+            }
+          },
+          createdAt: 1,
+          updatedAt: 1
+        }
+      },
+      {
+        $addFields: {
+          otherUser: { $arrayElemAt: ["$participants", 0] }
+        }
+      },
+      {
+        $sort: { "latestMessage.timestamp": -1 } // 🔥 Sort by most recent message
+      }
+    ]);
+
+    res.status(200).json({ success: true, chatRooms });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Route to search users by email (excluding current user)
+app.get("/search-users", async (req, res) => {
+  try {
+    const { email, searchQuery } = req.query;
+    
+    if (!email || !searchQuery) {
+      return res.status(400).json({ message: "Email and search query are required" });
+    }
+
+    // Find users matching the search query (excluding current user)
+    const users = await User.find({
+      email: { $regex: searchQuery, $options: 'i' }, // Case-insensitive search
+      email: { $ne: email } // Exclude current user
+    }).select('name email _id'); // Only return necessary fields
+
+    res.status(200).json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get("/user-chats", async (req, res) => {
   try {
     const { email ,otherEmail} = req.query;
@@ -143,7 +283,7 @@ app.post("/create-chat", async (req, res) => {
       // Create a new chat room
       const newChat = new Chat({
         users: [user._id, sender._id],
-        chatName: `${sender.email}`,
+        chatName: `${sender.email}__SEP__${user.email}`,
         isGroupChat: false
       });
 
