@@ -353,7 +353,6 @@ app.get("/messages/:chatId", async (req, res) => {
   }
 });
 
-// Handle updating message status (sent -> delivered -> seen)
 app.post("/update-status", async (req, res) => {
   try {
     const { messageId, status } = req.body;
